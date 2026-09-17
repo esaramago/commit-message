@@ -124,6 +124,44 @@ export async function fetchAvailableModels(apiKey?: string): Promise<OpenRouterM
   }
 }
 
+export function prioritizeFreeModels(
+  liveModelIds: string[],
+  excludedModelId?: string,
+): string[] {
+  const excludedSet = new Set(excludedModelId ? [excludedModelId] : []);
+  const liveSet = new Set(liveModelIds);
+
+  // 1. First prioritize known fast and reliable free models in defined order
+  const popularIds = POPULAR_FREE_MODELS.map((m) => m.id).filter(
+    (id) => !excludedSet.has(id) && !isProviderNotFeatured(id) && liveSet.has(id),
+  );
+
+  const chosenSet = new Set(popularIds);
+
+  // 2. Then add other live models that explicitly have :free in their slug
+  const otherWithFreeSuffix = liveModelIds.filter(
+    (id) =>
+      !excludedSet.has(id) &&
+      !chosenSet.has(id) &&
+      !isProviderNotFeatured(id) &&
+      id.endsWith(':free'),
+  );
+
+  for (const id of otherWithFreeSuffix) {
+    chosenSet.add(id);
+  }
+
+  // 3. Finally any other remaining free models (e.g. pricing 0 without :free suffix)
+  const remaining = liveModelIds.filter(
+    (id) =>
+      !excludedSet.has(id) &&
+      !chosenSet.has(id) &&
+      !isProviderNotFeatured(id),
+  );
+
+  return [...popularIds, ...otherWithFreeSuffix, ...remaining];
+}
+
 export async function getLiveFreeModelIds(apiKey?: string): Promise<string[]> {
   const now = Date.now();
   if (cachedFreeModels && now - cachedFreeModels.timestamp < CACHE_TTL_MS) {
@@ -131,7 +169,9 @@ export async function getLiveFreeModelIds(apiKey?: string): Promise<string[]> {
   }
 
   const models = await fetchAvailableModels(apiKey);
-  const freeIds = models.filter((m) => isModelFree(m)).map((m) => m.id);
+  const freeIds = models
+    .filter((m) => isModelFree(m) && !isProviderNotFeatured(m.id))
+    .map((m) => m.id);
 
   if (freeIds.length > 0) {
     cachedFreeModels = { models: freeIds, timestamp: now };
@@ -139,7 +179,7 @@ export async function getLiveFreeModelIds(apiKey?: string): Promise<string[]> {
   }
 
   // Fallback if network failed or empty list returned
-  return POPULAR_FREE_MODELS.map((m) => m.id);
+  return POPULAR_FREE_MODELS.map((m) => m.id).filter((id) => !isProviderNotFeatured(id));
 }
 
 export async function generateCommitMessageWithOpenRouter(
@@ -213,6 +253,7 @@ export interface GenerationResult {
   usedModel: string;
   fallbackUsed: boolean;
   originalModel: string;
+  isAutoMode: boolean;
 }
 
 export async function generateCommitMessageWithAutoFallback(
@@ -220,14 +261,30 @@ export async function generateCommitMessageWithAutoFallback(
   requestedModel: string,
   messages: ChatMessage[],
   onStatusUpdate?: (status: string) => void,
-  cancellationToken?: { isCancellationRequested: boolean }
+  cancellationToken?: { isCancellationRequested: boolean },
+  savedAutoModel?: string,
 ): Promise<GenerationResult> {
-  let targetModel = requestedModel?.trim();
+  const isAuto =
+    !requestedModel ||
+    requestedModel.trim() === '' ||
+    requestedModel.trim() === 'auto' ||
+    requestedModel.trim() === 'auto:free';
 
-  // If user selected "auto" or "auto:free", get the first active free model
-  if (!targetModel || targetModel === 'auto' || targetModel === 'auto:free') {
-    const liveFree = await getLiveFreeModelIds(apiKey);
-    targetModel = liveFree[0] || POPULAR_FREE_MODELS[0].id;
+  let targetModel: string;
+
+  if (isAuto) {
+    if (savedAutoModel && savedAutoModel.trim().length > 0) {
+      // Fast path: use previously verified working auto model directly without querying /models
+      targetModel = savedAutoModel.trim();
+    } else {
+      // First run in auto mode: query and pick top prioritized free model
+      onStatusUpdate?.('Finding active free model on OpenRouter...');
+      const liveFree = await getLiveFreeModelIds(apiKey);
+      const prioritized = prioritizeFreeModels(liveFree);
+      targetModel = prioritized[0] || POPULAR_FREE_MODELS[0].id;
+    }
+  } else {
+    targetModel = requestedModel.trim();
   }
 
   try {
@@ -240,8 +297,9 @@ export async function generateCommitMessageWithAutoFallback(
     return {
       commitMessage: message,
       usedModel: targetModel,
-      fallbackUsed: targetModel !== requestedModel && requestedModel !== 'auto' && requestedModel !== 'auto:free',
-      originalModel: requestedModel,
+      fallbackUsed: false,
+      originalModel: isAuto ? (savedAutoModel || requestedModel) : requestedModel,
+      isAutoMode: isAuto,
     };
   } catch (err: any) {
     if (cancellationToken?.isCancellationRequested) {
@@ -254,14 +312,14 @@ export async function generateCommitMessageWithAutoFallback(
       throw err;
     }
 
-    // Model is unavailable for free or offline. Initiate automatic fallback.
-    onStatusUpdate?.(`Model "${targetModel}" is unavailable for free. Finding active free model...`);
+    // Target model failed. Initiate automatic fallback.
+    onStatusUpdate?.(`Model "${targetModel}" is unavailable. Finding active free model...`);
 
     const liveFreeModels = await getLiveFreeModelIds(apiKey);
-    const candidates = liveFreeModels.filter((m) => m !== targetModel);
+    const candidates = prioritizeFreeModels(liveFreeModels, targetModel);
 
     let lastError: any = err;
-    for (const candidate of candidates.slice(0, 3)) {
+    for (const candidate of candidates.slice(0, 5)) {
       if (cancellationToken?.isCancellationRequested) {
         throw new Error('Operation was cancelled.');
       }
@@ -279,6 +337,7 @@ export async function generateCommitMessageWithAutoFallback(
           usedModel: candidate,
           fallbackUsed: true,
           originalModel: targetModel,
+          isAutoMode: isAuto,
         };
       } catch (retryErr: any) {
         lastError = retryErr;
@@ -289,7 +348,7 @@ export async function generateCommitMessageWithAutoFallback(
     }
 
     throw new Error(
-      `Model "${targetModel}" is unavailable for free, and automatic fallbacks failed: ${lastError?.message || errorMsg}`
+      `Model "${targetModel}" is unavailable, and automatic fallbacks failed: ${lastError?.message || errorMsg}`
     );
   }
 }

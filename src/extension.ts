@@ -65,6 +65,10 @@ export function activate(context: vscode.ExtensionContext) {
         )
         const customPrompt = config.get<string>('customPrompt', '')
         const model = config.get<string>('model', 'auto:free')
+        const isAuto = !model || model === 'auto' || model === 'auto:free'
+        const savedAutoModel = context.globalState.get<string>(
+          'openrouter.lastWorkingAutoModel',
+        )
 
         const diffResult = await getRepositoryDiff(repo, includeUnstaged)
         if (!diffResult) {
@@ -75,11 +79,16 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const messages = buildCommitPrompt(diffResult.diff, customPrompt)
+        const displayModel = isAuto
+          ? savedAutoModel
+            ? `auto:free (${savedAutoModel})`
+            : 'auto:free'
+          : model
 
         await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
-            title: `Generating commit message using ${model}...`,
+            title: `Generating commit message using ${displayModel}...`,
             cancellable: true,
           },
           async (progress, token) => {
@@ -89,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
               messages,
               (status) => progress.report({ message: status }),
               token,
+              savedAutoModel,
             )
 
             if (token.isCancellationRequested) {
@@ -97,7 +107,19 @@ export function activate(context: vscode.ExtensionContext) {
 
             repo.inputBox.value = result.commitMessage
 
-            if (result.fallbackUsed) {
+            if (result.isAutoMode) {
+              if (result.usedModel && result.usedModel !== savedAutoModel) {
+                await context.globalState.update(
+                  'openrouter.lastWorkingAutoModel',
+                  result.usedModel,
+                )
+              }
+              if (result.fallbackUsed && savedAutoModel) {
+                vscode.window.showInformationMessage(
+                  `Previous auto model "${savedAutoModel}" was unavailable. Switched to "${result.usedModel}".`,
+                )
+              }
+            } else if (result.fallbackUsed) {
               const action = await vscode.window.showInformationMessage(
                 `Model "${result.originalModel}" was unavailable for free. Successfully generated with "${result.usedModel}".`,
                 'Set as Default Model',
@@ -166,6 +188,9 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       const config = vscode.workspace.getConfiguration('generateCommitMessage')
       const currentModel = config.get<string>('model', 'auto:free')
+      const savedAutoModel = context.globalState.get<string>(
+        'openrouter.lastWorkingAutoModel',
+      )
       const apiKey = await getApiKey(context)
 
       type ModelQuickPickItem = vscode.QuickPickItem & {
@@ -180,14 +205,18 @@ export function activate(context: vscode.ExtensionContext) {
       quickPick.busy = true
       quickPick.show()
 
+      const isAutoCurrent =
+        currentModel === 'auto:free' || currentModel === 'auto'
+      const autoDetailSuffix = isAutoCurrent
+        ? savedAutoModel
+          ? ` (Current: using ${savedAutoModel})`
+          : ' (Current)'
+        : ''
+
       const autoOption: ModelQuickPickItem = {
         label: '$(sparkle) Auto (Free)',
         description: 'Recommended',
-        detail: `Dynamically selects the currently active free model on OpenRouter${
-          currentModel === 'auto:free' || currentModel === 'auto'
-            ? ' (Current)'
-            : ''
-        }`,
+        detail: `Dynamically selects the currently active free model on OpenRouter${autoDetailSuffix}`,
         modelId: 'auto:free',
       }
 
@@ -296,6 +325,12 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         if (chosenModelId) {
+          if (chosenModelId === 'auto:free' || chosenModelId === 'auto') {
+            await context.globalState.update(
+              'openrouter.lastWorkingAutoModel',
+              undefined,
+            )
+          }
           await config.update(
             'model',
             chosenModelId,

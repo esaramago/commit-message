@@ -57,10 +57,10 @@ Technical guide and conventions for AI agents and developers working on this ext
 ## 4. OpenRouter Free Models & Auto-Fallback
  
 OpenRouter provides free models identified by the `:free` suffix or pricing set to `0`.
-Because free models rotate and providers can decommission or convert free slugs to paid at any time, the extension implements an **Auto-Fallback Mechanism**:
-1. **Default Mode (`auto:free`)**: Dynamically queries the public `https://openrouter.ai/api/v1/models` endpoint for the top active free model.
-2. **Auto-Recovery**: If a requested model responds with `unavailable for free` or `no endpoints found`, the extension catches the error, fetches the live list of currently active free models, and seamlessly retries with an active free alternative.
-3. **Live Selector**: The model picker lists real-time active free models fetched live from OpenRouter.
+Because free models rotate and providers can decommission or convert free slugs to paid at any time, the extension implements an **Auto-Fallback & Persistent Cache Mechanism**:
+1. **Default Mode (`auto:free`)**: Uses the last working free model saved in `context.globalState` for instant generation without pre-querying the `/models` endpoint. On initial run or after a failure, queries live models and prioritizes known fast, reliable free models (`POPULAR_FREE_MODELS`).
+2. **Auto-Recovery & Persistence**: If the cached or requested model responds with `unavailable for free`, `no endpoints found`, or provider errors, the extension catches the error, fetches the live list of currently active free models, and retries with prioritized active free alternatives. Upon success, the working model is saved to `context.globalState` (`openrouter.lastWorkingAutoModel`) to be used directly on subsequent runs.
+3. **Live Selector**: The model picker lists real-time active free models fetched live from OpenRouter and displays the currently active cached model for `Auto (Free)`. Selecting `Auto (Free)` manually resets the cache to force a fresh model discovery.
 
 ---
 
