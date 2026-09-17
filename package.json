@@ -74,7 +74,8 @@
     "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
     "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild test/prompt.test.ts --bundle --platform=node --outfile=out/test/prompt.test.js --external:vscode && node --test out/test/prompt.test.js"
+    "test": "esbuild test/prompt.test.ts --bundle --platform=node --outfile=out/test/prompt.test.js --external:vscode && node --test out/test/prompt.test.js",
+    "generate": "npx --yes @vscode/vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
