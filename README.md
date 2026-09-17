@@ -64,3 +64,9 @@ pnpm run watch
 ```
 
 Press `F5` to open a new VS Code window with the extension loaded for testing.
+
+---
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-or-later) - a strong copyleft license requiring any modified or derivative works to remain open-source under the same terms.
