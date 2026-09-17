@@ -15,7 +15,7 @@ export function buildCommitPrompt(
 
   const systemInstructions = [
     'You are an expert software developer and Git assistant.',
-    'Your task is to write a clean, accurate Git commit message based on the provided git diff.',
+    'Your task is to write a concise, direct, and accurate Git commit message based on the provided git diff.',
     '',
     'Follow the Conventional Commits specification strictly:',
     'Format: <type>(<optional scope>): <description>',
@@ -35,11 +35,12 @@ export function buildCommitPrompt(
     '',
     'Rules:',
     '1. Language MUST be English.',
-    '2. The subject line must be in the imperative present tense (e.g., "add", "fix", "change", not "added", "fixed", "changes").',
-    '3. Do NOT capitalize the first letter of the subject description after the colon and do NOT put a period at the end.',
-    '4. Limit the subject line to 72 characters.',
-    '5. If the changes are substantial, include a body separated by an empty line, using concise bullet points starting with "- ".',
-    '6. Return ONLY the raw commit message. Do NOT wrap in markdown codeblocks (no ```), do NOT add any introductions, explanations, or quotes.',
+    '2. Keep the commit message short, direct, and to the point. Focus strictly on the primary intent and avoid fluff.',
+    '3. Prefer a single-line commit message. Do NOT add a body unless strictly necessary; if essential, keep it to at most 1-2 brief bullet points.',
+    '4. The subject line must be in the imperative present tense (e.g., "add", "fix", "change", not "added", "fixed", "changes").',
+    '5. Do NOT capitalize the first letter of the subject description after the colon and do NOT put a period at the end.',
+    '6. Keep the subject line short (ideally under 50-72 characters).',
+    '7. Return ONLY the raw commit message. Do NOT wrap in markdown codeblocks (no ```), do NOT add any introductions, explanations, or quotes.',
   ]
 
   if (customPrompt && customPrompt.trim().length > 0) {
