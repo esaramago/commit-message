@@ -126,7 +126,7 @@ describe('Model Unavailability Error Detection', () => {
     )
   })
 
-  it('should not detect authentication or rate limit errors as model unavailability', () => {
+  it('should not detect authentication or generic account rate limit errors as model unavailability', () => {
     assert.strictEqual(
       isModelUnavailableError('Invalid OpenRouter API Key'),
       false,
@@ -134,6 +134,23 @@ describe('Model Unavailability Error Detection', () => {
     assert.strictEqual(
       isModelUnavailableError('Rate limit exceeded (429)'),
       false,
+    )
+  })
+
+  it('should detect provider errors and free model queue/rate limit errors as model unavailability', () => {
+    assert.strictEqual(
+      isModelUnavailableError(
+        'OpenRouter rate limit reached. Free models may have hourly limits or queues: Provider returned error',
+      ),
+      true,
+    )
+    assert.strictEqual(
+      isModelUnavailableError('Provider returned error'),
+      true,
+    )
+    assert.strictEqual(
+      isModelUnavailableError('The provider is overloaded. Please try again later.'),
+      true,
     )
   })
 })

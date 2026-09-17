@@ -129,7 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
               }
             } else if (result.fallbackUsed) {
               const action = await vscode.window.showInformationMessage(
-                `Model "${result.originalModel}" was unavailable for free. Successfully generated with "${result.usedModel}".`,
+                `Model "${result.originalModel}" was unavailable. Successfully generated with "${result.usedModel}".`,
                 'Set as Default Model',
               )
               if (action === 'Set as Default Model') {
@@ -145,6 +145,13 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (err: any) {
         if (err?.message === 'Operation was cancelled.') {
           return
+        }
+
+        const config = vscode.workspace.getConfiguration('generateCommitMessage')
+        const currentModel = config.get<string>('model', 'auto:free')
+        const isAuto = !currentModel || currentModel === 'auto' || currentModel === 'auto:free'
+        if (isAuto) {
+          await context.globalState.update('openrouter.lastWorkingAutoModel', undefined)
         }
 
         const errorMsg = err?.message || String(err)

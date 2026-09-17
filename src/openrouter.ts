@@ -114,9 +114,14 @@ export function isModelUnavailableError(errorMessage: string): boolean {
     lower.includes('is disabled') ||
     lower.includes('decommissioned') ||
     lower.includes('provider is unavailable') ||
+    lower.includes('provider returned error') ||
+    lower.includes('provider error') ||
+    lower.includes('free models may have hourly limits or queues') ||
     lower.includes('temporarily unavailable') ||
     lower.includes('timed out') ||
-    lower.includes('timeout')
+    lower.includes('timeout') ||
+    lower.includes('overloaded') ||
+    lower.includes('capacity')
   );
 }
 
