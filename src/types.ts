@@ -1,71 +1,70 @@
-import * as vscode from 'vscode';
+import * as vscode from 'vscode'
 
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+  role: 'system' | 'user' | 'assistant'
+  content: string
 }
 
 export interface ChatCompletionRequest {
-  model: string;
-  messages: ChatMessage[];
-  temperature?: number;
+  model: string
+  messages: ChatMessage[]
+  temperature?: number
 }
 
 export interface ChatCompletionResponse {
   choices?: Array<{
     message?: {
-      content?: string;
-    };
-  }>;
+      content?: string
+    }
+  }>
   error?: {
-    message?: string;
-    code?: number;
-  };
+    message?: string
+    code?: number
+  }
 }
 
 export interface OpenRouterModel {
-  id: string;
-  name?: string;
-  description?: string;
-  context_length?: number;
+  id: string
+  name?: string
+  description?: string
+  context_length?: number
   pricing?: {
-    prompt?: string;
-    completion?: string;
-  };
+    prompt?: string
+    completion?: string
+  }
 }
 
 export interface OpenRouterModelsResponse {
-  data: OpenRouterModel[];
+  data: OpenRouterModel[]
 }
 
 export interface GitExtension {
-  getAPI(version: number): GitAPI;
+  getAPI(version: number): GitAPI
 }
 
 export interface GitAPI {
-  repositories: GitRepository[];
+  repositories: GitRepository[]
 }
 
 export interface GitRepository {
-  rootUri: vscode.Uri;
+  rootUri: vscode.Uri
   inputBox: {
-    value: string;
-  };
+    value: string
+  }
   state: {
     HEAD?: {
-      name?: string;
-    };
-    indexChanges: GitChange[];
-    workingTreeChanges: GitChange[];
-  };
+      name?: string
+    }
+    indexChanges: GitChange[]
+    workingTreeChanges: GitChange[]
+  }
   ui: {
-    selected: boolean;
-  };
-  diff(cached?: boolean): Promise<string>;
+    selected: boolean
+  }
+  diff(cached?: boolean): Promise<string>
 }
 
 export interface GitChange {
-  uri: vscode.Uri;
-  status: number;
+  uri: vscode.Uri
+  status: number
 }
-

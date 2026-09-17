@@ -10,9 +10,9 @@ Technical guide and conventions for AI agents and developers working on this ext
 
 ### Key Goals
 - **Simplicity and Speed**: Fast startup, zero heavy runtime dependencies, bundled into a single file with `esbuild`.
-- **Cost Efficiency**: Prioritizes and highlights free models (`:free`) available on OpenRouter (defaulting to `meta-llama/llama-3.3-70b-instruct:free`).
+- **Cost Efficiency**: Prioritizes and highlights free models (`:free`) available on OpenRouter (defaulting to `auto:free` with automatic fallback when a model is disabled or changes to paid).
 - **Standard Commits**: Enforces the Conventional Commits specification in English without noise or markdown codeblock wrappers.
-- **Native SCM Integration**: Places buttons directly into the Source Control title bar and commit input box inline actions.
+- **Native SCM Integration**: Places buttons directly into the Source Control title bar.
 
 ---
 
@@ -54,15 +54,13 @@ Technical guide and conventions for AI agents and developers working on this ext
 
 ---
 
-## 4. OpenRouter Free Models
-
+## 4. OpenRouter Free Models & Auto-Fallback
+ 
 OpenRouter provides free models identified by the `:free` suffix or pricing set to `0`.
-Common free models include:
-- `meta-llama/llama-3.3-70b-instruct:free` (Default)
-- `google/gemini-2.0-flash-exp:free`
-- `qwen/qwen-2.5-coder-32b-instruct:free`
-- `deepseek/deepseek-chat:free`
-- `mistralai/mistral-7b-instruct:free`
+Because free models rotate and providers can decommission or convert free slugs to paid at any time, the extension implements an **Auto-Fallback Mechanism**:
+1. **Default Mode (`auto:free`)**: Dynamically queries the public `https://openrouter.ai/api/v1/models` endpoint for the top active free model.
+2. **Auto-Recovery**: If a requested model responds with `unavailable for free` or `no endpoints found`, the extension catches the error, fetches the live list of currently active free models, and seamlessly retries with an active free alternative.
+3. **Live Selector**: The model picker lists real-time active free models fetched live from OpenRouter.
 
 ---
 

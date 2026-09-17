@@ -1,16 +1,5 @@
 {
   "name": "generate-commit-message",
-  "version": "1.0.0",
-  "description": "This extension for vscode and vscodium generates git commit messages using OpenRouter API.",
-  "scripts": {},
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.4.2",
-      "onFail": "download"
   "displayName": "Generate Commit Message",
   "description": "Generate Git commit messages using OpenRouter AI directly from your git diff.",
   "version": "0.1.0",
@@ -23,7 +12,7 @@
     "vscode": "^1.80.0"
   },
   "categories": [
-    "Source Code",
+    "AI",
     "Other"
   ],
   "main": "./dist/extension.js",
@@ -40,6 +29,10 @@
         "title": "Generate Commit Message: Set OpenRouter API Key"
       },
       {
+        "command": "generate-commit-message.clearApiKey",
+        "title": "Generate Commit Message: Clear OpenRouter API Key"
+      },
+      {
         "command": "generate-commit-message.selectModel",
         "title": "Generate Commit Message: Select OpenRouter Model"
       }
@@ -51,13 +44,6 @@
           "group": "navigation",
           "when": "scmRepositoryCount > 0"
         }
-      ],
-      "scm/inputBox": [
-        {
-          "command": "generate-commit-message.generate",
-          "group": "inline",
-          "when": "scmRepositoryCount > 0"
-        }
       ]
     },
     "configuration": {
@@ -65,8 +51,8 @@
       "properties": {
         "generateCommitMessage.model": {
           "type": "string",
-          "default": "meta-llama/llama-3.3-70b-instruct:free",
-          "description": "OpenRouter model to use. Free models end with ':free'."
+          "default": "auto:free",
+          "description": "OpenRouter model to use. Use 'auto:free' to dynamically select active free models, or specify a model ID."
         },
         "generateCommitMessage.includeUnstagedIfNoStaged": {
           "type": "boolean",
@@ -81,8 +67,6 @@
       }
     }
   },
-  "packageManager": "pnpm@12.4.2",
-  "type": "module"
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
     "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",

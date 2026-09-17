@@ -1,13 +1,15 @@
-import * as vscode from 'vscode';
-import { getGitAPI, getRepositoryDiff, getTargetRepository } from './git';
-import { getApiKey, promptAndSetApiKey } from './secrets';
-import { buildCommitPrompt } from './prompt';
+import * as vscode from 'vscode'
+import { getGitAPI, getRepositoryDiff, getTargetRepository } from './git'
+import { deleteApiKey, getApiKey, promptAndSetApiKey } from './secrets'
+import { buildCommitPrompt } from './prompt'
 import {
   fetchAvailableModels,
-  generateCommitMessageWithOpenRouter,
+  generateCommitMessageWithAutoFallback,
   isModelFree,
-  POPULAR_FREE_MODELS
-} from './openrouter';
+  isProviderNotFeatured,
+  POPULAR_FREE_MODELS,
+  POPULAR_PAID_MODELS,
+} from './openrouter'
 
 export function activate(context: vscode.ExtensionContext) {
   // Command: Generate Commit Message
@@ -15,146 +17,233 @@ export function activate(context: vscode.ExtensionContext) {
     'generate-commit-message.generate',
     async (sourceControlOrRepo?: any) => {
       try {
-        const gitAPI = await getGitAPI();
+        const gitAPI = await getGitAPI()
         if (!gitAPI) {
-          vscode.window.showErrorMessage('VS Code Git extension was not found or failed to load.');
-          return;
+          vscode.window.showErrorMessage(
+            'VS Code Git extension was not found or failed to load.',
+          )
+          return
         }
 
-        const repo = getTargetRepository(gitAPI, sourceControlOrRepo);
+        const repo = getTargetRepository(gitAPI, sourceControlOrRepo)
         if (!repo) {
-          vscode.window.showInformationMessage('No active Git repository found in the current workspace.');
-          return;
+          vscode.window.showInformationMessage(
+            'No active Git repository found in the current workspace.',
+          )
+          return
         }
 
-        let apiKey = await getApiKey(context);
+        let apiKey = await getApiKey(context)
         if (!apiKey) {
           const action = await vscode.window.showWarningMessage(
-            'OpenRouter API Key is not configured.',
-            'Set API Key'
-          );
+            'OpenRouter API key is required to generate commit messages. OpenRouter provides access to AI models (including free models) to analyze your git diff.',
+            'Set API Key',
+            'Learn More',
+          )
           if (action === 'Set API Key') {
-            apiKey = await promptAndSetApiKey(context);
+            apiKey = await promptAndSetApiKey(context)
+          } else if (action === 'Learn More') {
+            const extensionId =
+              context.extension?.id || 'emanuelsaramago.generate-commit-message'
+            await vscode.env.openExternal(
+              vscode.Uri.parse(
+                `https://marketplace.visualstudio.com/items?itemName=${extensionId}#getting-started`,
+              ),
+            )
           }
           if (!apiKey) {
-            return;
+            return
           }
         }
 
-        const config = vscode.workspace.getConfiguration('generateCommitMessage');
-        const includeUnstaged = config.get<boolean>('includeUnstagedIfNoStaged', true);
-        const customPrompt = config.get<string>('customPrompt', '');
-        const model = config.get<string>('model', 'meta-llama/llama-3.3-70b-instruct:free');
+        const config = vscode.workspace.getConfiguration(
+          'generateCommitMessage',
+        )
+        const includeUnstaged = config.get<boolean>(
+          'includeUnstagedIfNoStaged',
+          true,
+        )
+        const customPrompt = config.get<string>('customPrompt', '')
+        const model = config.get<string>('model', 'auto:free')
 
-        const diffResult = await getRepositoryDiff(repo, includeUnstaged);
+        const diffResult = await getRepositoryDiff(repo, includeUnstaged)
         if (!diffResult) {
           vscode.window.showInformationMessage(
-            'No git changes detected. Stage your changes or modify files to generate a commit message.'
-          );
-          return;
+            'No git changes detected. Stage your changes or modify files to generate a commit message.',
+          )
+          return
         }
 
-        const messages = buildCommitPrompt(diffResult.diff, customPrompt);
+        const messages = buildCommitPrompt(diffResult.diff, customPrompt)
 
         await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
             title: `Generating commit message using ${model}...`,
-            cancellable: true
+            cancellable: true,
           },
-          async (_progress, token) => {
-            const commitMessage = await generateCommitMessageWithOpenRouter(
+          async (progress, token) => {
+            const result = await generateCommitMessageWithAutoFallback(
               apiKey,
               model,
               messages,
-              token
-            );
+              (status) => progress.report({ message: status }),
+              token,
+            )
 
             if (token.isCancellationRequested) {
-              return;
+              return
             }
 
-            repo.inputBox.value = commitMessage;
-            vscode.window.showInformationMessage('Commit message generated and inserted into Source Control.');
-          }
-        );
+            repo.inputBox.value = result.commitMessage
+
+            if (result.fallbackUsed) {
+              const action = await vscode.window.showInformationMessage(
+                `Model "${result.originalModel}" was unavailable for free. Successfully generated with "${result.usedModel}".`,
+                'Set as Default Model',
+              )
+              if (action === 'Set as Default Model') {
+                await config.update(
+                  'model',
+                  result.usedModel,
+                  vscode.ConfigurationTarget.Global,
+                )
+              }
+            }
+          },
+        )
       } catch (err: any) {
         if (err?.message === 'Operation was cancelled.') {
-          return;
+          return
         }
 
-        const errorMsg = err?.message || String(err);
+        const errorMsg = err?.message || String(err)
         if (errorMsg.includes('Invalid OpenRouter API Key')) {
-          const action = await vscode.window.showErrorMessage(errorMsg, 'Update API Key');
+          const action = await vscode.window.showErrorMessage(
+            errorMsg,
+            'Update API Key',
+          )
           if (action === 'Update API Key') {
-            await promptAndSetApiKey(context);
+            await promptAndSetApiKey(context)
           }
         } else {
-          vscode.window.showErrorMessage(`Failed to generate commit message: ${errorMsg}`);
+          const action = await vscode.window.showErrorMessage(
+            `Failed to generate commit message: ${errorMsg}`,
+            'Select Another Model',
+          )
+          if (action === 'Select Another Model') {
+            await vscode.commands.executeCommand(
+              'generate-commit-message.selectModel',
+            )
+          }
         }
       }
-    }
-  );
+    },
+  )
 
   // Command: Set OpenRouter API Key
   const setApiKeyCommand = vscode.commands.registerCommand(
     'generate-commit-message.setApiKey',
     async () => {
-      await promptAndSetApiKey(context);
-    }
-  );
+      await promptAndSetApiKey(context)
+    },
+  )
+
+  // Command: Clear OpenRouter API Key
+  const clearApiKeyCommand = vscode.commands.registerCommand(
+    'generate-commit-message.clearApiKey',
+    async () => {
+      await deleteApiKey(context)
+      vscode.window.showInformationMessage(
+        'OpenRouter API Key has been removed.',
+      )
+    },
+  )
 
   // Command: Select OpenRouter Model
   const selectModelCommand = vscode.commands.registerCommand(
     'generate-commit-message.selectModel',
     async () => {
-      const config = vscode.workspace.getConfiguration('generateCommitMessage');
-      const currentModel = config.get<string>('model', 'meta-llama/llama-3.3-70b-instruct:free');
-      const apiKey = await getApiKey(context);
+      const config = vscode.workspace.getConfiguration('generateCommitMessage')
+      const currentModel = config.get<string>('model', 'auto:free')
+      const apiKey = await getApiKey(context)
 
-      type ModelQuickPickItem = vscode.QuickPickItem & { modelId?: string; isCustom?: boolean };
+      type ModelQuickPickItem = vscode.QuickPickItem & {
+        modelId?: string
+        isCustom?: boolean
+      }
 
-      const quickPick = vscode.window.createQuickPick<ModelQuickPickItem>();
-      quickPick.title = 'Select OpenRouter Model';
-      quickPick.placeholder = 'Choose a model or search... (Free models are highlighted)';
-      quickPick.busy = true;
-      quickPick.show();
+      const quickPick = vscode.window.createQuickPick<ModelQuickPickItem>()
+      quickPick.title = 'Select OpenRouter Model'
+      quickPick.placeholder =
+        'Choose a model or search... (Free models are highlighted)'
+      quickPick.busy = true
+      quickPick.show()
+
+      const autoOption: ModelQuickPickItem = {
+        label: '$(sparkle) Auto (Free)',
+        description: 'Recommended',
+        detail: `Dynamically selects the currently active free model on OpenRouter${
+          currentModel === 'auto:free' || currentModel === 'auto'
+            ? ' (Current)'
+            : ''
+        }`,
+        modelId: 'auto:free',
+      }
+
+      const customOption: ModelQuickPickItem = {
+        label: '$(edit) Enter custom model ID...',
+        description: 'Type any model ID available on OpenRouter',
+        isCustom: true,
+      }
 
       // Show curated list immediately
       const initialItems: ModelQuickPickItem[] = [
+        autoOption,
+        customOption,
         {
-          label: '$(edit) Enter custom model ID...',
-          description: 'Type any model ID available on OpenRouter',
-          isCustom: true
+          label: 'Popular Free Models',
+          kind: vscode.QuickPickItemKind.Separator,
         },
         ...POPULAR_FREE_MODELS.map((m) => ({
           label: `$(gift) ${m.name}`,
           description: `[FREE] ${m.id}`,
           detail: `${m.description}${m.id === currentModel ? ' (Current)' : ''}`,
-          modelId: m.id
-        }))
-      ];
-      quickPick.items = initialItems;
+          modelId: m.id,
+        })),
+        {
+          label: 'Featured Paid Models',
+          kind: vscode.QuickPickItemKind.Separator,
+        },
+        ...POPULAR_PAID_MODELS.filter((m) => !isProviderNotFeatured(m.id)).map(
+          (m) => ({
+            label: `$(symbol-variable) ${m.name}`,
+            description: m.id,
+            detail: `${m.description}${m.id === currentModel ? ' (Current)' : ''}`,
+            modelId: m.id,
+          }),
+        ),
+      ]
+      quickPick.items = initialItems
 
-      // Try fetching the full list in the background
+      // Fetch live models from OpenRouter
       fetchAvailableModels(apiKey).then((models) => {
-        quickPick.busy = false;
+        quickPick.busy = false
         if (!models || models.length === 0) {
-          return;
+          return
         }
 
-        const freeModels = models.filter((m) => isModelFree(m));
-        const paidModels = models.filter((m) => !isModelFree(m));
+        const freeModels = models.filter((m) => isModelFree(m))
+        const paidModels = models.filter(
+          (m) => !isModelFree(m) && !isProviderNotFeatured(m.id),
+        )
 
         const updatedItems: ModelQuickPickItem[] = [
+          autoOption,
+          customOption,
           {
-            label: '$(edit) Enter custom model ID...',
-            description: 'Type any model ID available on OpenRouter',
-            isCustom: true
-          },
-          {
-            label: 'Free Models',
-            kind: vscode.QuickPickItemKind.Separator
+            label: `Live Free Models (${freeModels.length} available)`,
+            kind: vscode.QuickPickItemKind.Separator,
           },
           ...freeModels.map((m) => ({
             label: `$(gift) ${m.name || m.id}`,
@@ -162,11 +251,11 @@ export function activate(context: vscode.ExtensionContext) {
             detail: `${m.description ? m.description.slice(0, 100) : ''}${
               m.id === currentModel ? ' (Current)' : ''
             }`,
-            modelId: m.id
+            modelId: m.id,
           })),
           {
-            label: 'Other Models',
-            kind: vscode.QuickPickItemKind.Separator
+            label: 'Featured Paid Models',
+            kind: vscode.QuickPickItemKind.Separator,
           },
           ...paidModels.slice(0, 50).map((m) => ({
             label: `$(symbol-variable) ${m.name || m.id}`,
@@ -174,46 +263,58 @@ export function activate(context: vscode.ExtensionContext) {
             detail: `${m.description ? m.description.slice(0, 100) : ''}${
               m.id === currentModel ? ' (Current)' : ''
             }`,
-            modelId: m.id
-          }))
-        ];
+            modelId: m.id,
+          })),
+        ]
 
-        quickPick.items = updatedItems;
-      });
+        quickPick.items = updatedItems
+      })
 
       quickPick.onDidAccept(async () => {
-        const selected = quickPick.selectedItems[0];
-        quickPick.hide();
+        const selected = quickPick.selectedItems[0]
+        quickPick.hide()
 
         if (!selected) {
-          return;
+          return
         }
 
-        let chosenModelId = selected.modelId;
+        let chosenModelId = selected.modelId
 
         if (selected.isCustom) {
           chosenModelId = await vscode.window.showInputBox({
             title: 'Custom OpenRouter Model ID',
-            prompt: 'Enter the model identifier (e.g. meta-llama/llama-3.3-70b-instruct:free)',
+            prompt:
+              'Enter the model identifier (e.g. meta-llama/llama-3.3-70b-instruct:free)',
             value: currentModel,
             ignoreFocusOut: true,
-            validateInput: (val) => (val && val.trim().length > 0 ? null : 'Model ID cannot be empty')
-          });
+            validateInput: (val) =>
+              val && val.trim().length > 0 ? null : 'Model ID cannot be empty',
+          })
           if (chosenModelId) {
-            chosenModelId = chosenModelId.trim();
+            chosenModelId = chosenModelId.trim()
           }
         }
 
         if (chosenModelId) {
-          await config.update('model', chosenModelId, vscode.ConfigurationTarget.Global);
-          vscode.window.showInformationMessage(`OpenRouter model set to: ${chosenModelId}`);
+          await config.update(
+            'model',
+            chosenModelId,
+            vscode.ConfigurationTarget.Global,
+          )
+          vscode.window.showInformationMessage(
+            `OpenRouter model set to: ${chosenModelId}`,
+          )
         }
-      });
-    }
-  );
+      })
+    },
+  )
 
-  context.subscriptions.push(generateCommand, setApiKeyCommand, selectModelCommand);
+  context.subscriptions.push(
+    generateCommand,
+    setApiKeyCommand,
+    clearApiKeyCommand,
+    selectModelCommand,
+  )
 }
 
 export function deactivate() {}
-
