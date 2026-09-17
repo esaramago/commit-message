@@ -1,6 +1,7 @@
 {
   "name": "generate-commit-message",
-  "displayName": "Generate Commit Message",
+  "icon": "resources/icon.png",
+  "displayName": "OpenRouter Commit Message",
   "description": "Generate Git commit messages using OpenRouter AI directly from your git diff.",
   "version": "0.1.0",
   "publisher": "emanuelsaramago",
@@ -22,20 +23,20 @@
     "commands": [
       {
         "command": "generate-commit-message.generate",
-        "title": "Generate Commit Message",
+        "title": "OpenRouter Commit Message",
         "icon": "$(sparkle)"
       },
       {
         "command": "generate-commit-message.setApiKey",
-        "title": "Generate Commit Message: Set OpenRouter API Key"
+        "title": "OpenRouter Commit Message: Set OpenRouter API Key"
       },
       {
         "command": "generate-commit-message.clearApiKey",
-        "title": "Generate Commit Message: Clear OpenRouter API Key"
+        "title": "OpenRouter Commit Message: Clear OpenRouter API Key"
       },
       {
         "command": "generate-commit-message.selectModel",
-        "title": "Generate Commit Message: Select OpenRouter Model"
+        "title": "OpenRouter Commit Message: Select OpenRouter Model"
       }
     ],
     "menus": {
@@ -48,7 +49,7 @@
       ]
     },
     "configuration": {
-      "title": "Generate Commit Message",
+      "title": "OpenRouter Commit Message",
       "properties": {
         "generateCommitMessage.model": {
           "type": "string",
