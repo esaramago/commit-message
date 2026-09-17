@@ -12,14 +12,19 @@ const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 
 export const POPULAR_FREE_MODELS = [
   {
-    id: 'nvidia/nemotron-3.5-lightning:free',
-    name: 'NVIDIA: Nemotron 3.5 Lightning',
-    description: 'Fast and reliable free model from NVIDIA',
+    id: 'google/gemma-4-26b-a4b-it:free',
+    name: 'Google: Gemma 4 26B A4B',
+    description: 'Fast, high-quality instruction model hosted on Google infrastructure',
   },
   {
     id: 'cohere/north-mini-code:free',
     name: 'Cohere: North Mini Code',
-    description: 'Specialized for code and developer tasks',
+    description: 'Fast specialized model for code and developer tasks',
+  },
+  {
+    id: 'liquid/lfm-2.5-2.6b:free',
+    name: 'LiquidAI: LFM 2.5 2.6B',
+    description: 'Ultra-lightweight 2.6B model with instant response time',
   },
   {
     id: 'nex-agi/nex-n2.5-mini:free',
@@ -27,14 +32,24 @@ export const POPULAR_FREE_MODELS = [
     description: 'Fast instruction model',
   },
   {
-    id: 'inclusionai/ling-3.0-flash-vl:free',
-    name: 'inclusionAI: Ling 3.0 Flash VL',
-    description: 'Fast general-purpose flash model',
+    id: 'google/gemma-4-31b-it:free',
+    name: 'Google: Gemma 4 31B',
+    description: 'Larger Google instruction model with strong code reasoning',
   },
   {
     id: 'z-ai/glm-5.2:free',
     name: 'Z.ai: GLM 5.2',
     description: 'Conversational and code reasoning model',
+  },
+  {
+    id: 'inclusionai/ling-3.0-flash-vl:free',
+    name: 'inclusionAI: Ling 3.0 Flash VL',
+    description: 'Fast general-purpose flash model',
+  },
+  {
+    id: 'nvidia/nemotron-3.5-lightning:free',
+    name: 'NVIDIA: Nemotron 3.5 Lightning',
+    description: 'MoE model from NVIDIA',
   },
 ];
 
@@ -97,7 +112,11 @@ export function isModelUnavailableError(errorMessage: string): boolean {
     lower.includes('does not exist') ||
     lower.includes('is not available') ||
     lower.includes('is disabled') ||
-    lower.includes('decommissioned')
+    lower.includes('decommissioned') ||
+    lower.includes('provider is unavailable') ||
+    lower.includes('temporarily unavailable') ||
+    lower.includes('timed out') ||
+    lower.includes('timeout')
   );
 }
 
@@ -182,70 +201,105 @@ export async function getLiveFreeModelIds(apiKey?: string): Promise<string[]> {
   return POPULAR_FREE_MODELS.map((m) => m.id).filter((id) => !isProviderNotFeatured(id));
 }
 
+export const DEFAULT_REQUEST_TIMEOUT_MS = 12000; // 12 seconds
+
 export async function generateCommitMessageWithOpenRouter(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  cancellationToken?: { isCancellationRequested: boolean }
+  cancellationToken?: { isCancellationRequested: boolean },
+  timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
 ): Promise<string> {
   const payload: ChatCompletionRequest = {
     model,
     messages,
     temperature: 0.2,
+    max_tokens: 300,
+    reasoning: { effort: 'none' },
   };
 
-  const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://github.com/emanuelsaramago/generate-commit-message',
-      'X-Title': 'Generate Commit Message VSCode Extension',
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(new Error(`Request timed out after ${timeoutMs / 1000}s`));
+  }, timeoutMs);
 
-  if (cancellationToken?.isCancellationRequested) {
-    throw new Error('Operation was cancelled.');
-  }
-
-  if (!response.ok) {
-    let errorMessage = `OpenRouter API error (status ${response.status})`;
-    try {
-      const errorJson = (await response.json()) as ChatCompletionResponse;
-      if (errorJson.error?.message) {
-        errorMessage = errorJson.error.message;
+  let checkCancellationInterval: NodeJS.Timeout | undefined;
+  if (cancellationToken) {
+    checkCancellationInterval = setInterval(() => {
+      if (cancellationToken.isCancellationRequested) {
+        controller.abort(new Error('Operation was cancelled.'));
       }
-    } catch {
-      const text = await response.text();
-      if (text) {
-        errorMessage = `${errorMessage}: ${text}`;
+    }, 150);
+  }
+
+  try {
+    const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://github.com/emanuelsaramago/generate-commit-message',
+        'X-Title': 'Generate Commit Message VSCode Extension',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (cancellationToken?.isCancellationRequested) {
+      throw new Error('Operation was cancelled.');
+    }
+
+    if (!response.ok) {
+      let errorMessage = `OpenRouter API error (status ${response.status})`;
+      try {
+        const errorJson = (await response.json()) as ChatCompletionResponse;
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch {
+        const text = await response.text();
+        if (text) {
+          errorMessage = `${errorMessage}: ${text}`;
+        }
       }
+
+      if (response.status === 401) {
+        throw new Error(
+          `Invalid OpenRouter API Key. Please verify your key with the 'Set OpenRouter API Key' command.`
+        );
+      }
+
+      if (response.status === 429) {
+        throw new Error(
+          `OpenRouter rate limit reached. Free models may have hourly limits or queues: ${errorMessage}`
+        );
+      }
+
+      throw new Error(errorMessage);
     }
 
-    if (response.status === 401) {
-      throw new Error(
-        `Invalid OpenRouter API Key. Please verify your key with the 'Set OpenRouter API Key' command.`
-      );
+    const data = (await response.json()) as ChatCompletionResponse;
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Received an empty response from OpenRouter.');
     }
 
-    if (response.status === 429) {
-      throw new Error(
-        `OpenRouter rate limit reached. Free models may have hourly limits or queues: ${errorMessage}`
-      );
+    return cleanCommitMessage(content);
+  } catch (err: any) {
+    if (cancellationToken?.isCancellationRequested || err?.message === 'Operation was cancelled.') {
+      throw new Error('Operation was cancelled.');
     }
-
-    throw new Error(errorMessage);
+    if (controller.signal.aborted) {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s. The model took too long to respond.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (checkCancellationInterval) {
+      clearInterval(checkCancellationInterval);
+    }
   }
-
-  const data = (await response.json()) as ChatCompletionResponse;
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('Received an empty response from OpenRouter.');
-  }
-
-  return cleanCommitMessage(content);
 }
 
 export interface GenerationResult {
@@ -330,7 +384,8 @@ export async function generateCommitMessageWithAutoFallback(
           apiKey,
           candidate,
           messages,
-          cancellationToken
+          cancellationToken,
+          10000,
         );
         return {
           commitMessage: fallbackMessage,

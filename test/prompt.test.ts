@@ -115,6 +115,17 @@ describe('Model Unavailability Error Detection', () => {
     )
   })
 
+  it('should detect timeout errors as model unavailability', () => {
+    assert.strictEqual(
+      isModelUnavailableError('Request timed out after 12s. The model took too long to respond.'),
+      true,
+    )
+    assert.strictEqual(
+      isModelUnavailableError('Gateway Timeout (504)'),
+      true,
+    )
+  })
+
   it('should not detect authentication or rate limit errors as model unavailability', () => {
     assert.strictEqual(
       isModelUnavailableError('Invalid OpenRouter API Key'),
@@ -177,14 +188,14 @@ describe('Free Model Prioritization & Auto Fallback', () => {
     const mockLive = [
       'stealth/union-alpha',
       'nex-agi/nex-n2.5-mini:free',
-      'nvidia/nemotron-3.5-lightning:free',
+      'google/gemma-4-26b-a4b-it:free',
       'random/obscure-model:free',
     ]
 
     const prioritized = prioritizeFreeModels(mockLive)
 
     // Popular models should come before obscure models
-    assert.strictEqual(prioritized[0], 'nvidia/nemotron-3.5-lightning:free')
+    assert.strictEqual(prioritized[0], 'google/gemma-4-26b-a4b-it:free')
     assert.strictEqual(prioritized[1], 'nex-agi/nex-n2.5-mini:free')
     // Then other :free models
     assert.strictEqual(prioritized[2], 'random/obscure-model:free')
@@ -194,27 +205,27 @@ describe('Free Model Prioritization & Auto Fallback', () => {
 
   it('should exclude specified model from prioritization when falling back', () => {
     const mockLive = [
-      'nvidia/nemotron-3.5-lightning:free',
+      'google/gemma-4-26b-a4b-it:free',
       'cohere/north-mini-code:free',
     ]
 
     const prioritized = prioritizeFreeModels(
       mockLive,
-      'nvidia/nemotron-3.5-lightning:free',
+      'google/gemma-4-26b-a4b-it:free',
     )
-    assert.strictEqual(prioritized.includes('nvidia/nemotron-3.5-lightning:free'), false)
+    assert.strictEqual(prioritized.includes('google/gemma-4-26b-a4b-it:free'), false)
     assert.strictEqual(prioritized[0], 'cohere/north-mini-code:free')
   })
 
   it('should exclude providers listed in settings.json during prioritization', () => {
     const mockLive = [
       'x-ai/grok-free:free',
-      'nvidia/nemotron-3.5-lightning:free',
+      'google/gemma-4-26b-a4b-it:free',
     ]
 
     const prioritized = prioritizeFreeModels(mockLive)
     assert.strictEqual(prioritized.includes('x-ai/grok-free:free'), false)
-    assert.strictEqual(prioritized[0], 'nvidia/nemotron-3.5-lightning:free')
+    assert.strictEqual(prioritized[0], 'google/gemma-4-26b-a4b-it:free')
   })
 })
 

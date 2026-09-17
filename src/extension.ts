@@ -66,9 +66,17 @@ export function activate(context: vscode.ExtensionContext) {
         const customPrompt = config.get<string>('customPrompt', '')
         const model = config.get<string>('model', 'auto:free')
         const isAuto = !model || model === 'auto' || model === 'auto:free'
-        const savedAutoModel = context.globalState.get<string>(
+        let savedAutoModel = context.globalState.get<string>(
           'openrouter.lastWorkingAutoModel',
         )
+        // Evict slow/queued models (like Nemotron) from previous session cache
+        if (savedAutoModel === 'nvidia/nemotron-3.5-lightning:free') {
+          savedAutoModel = undefined
+          await context.globalState.update(
+            'openrouter.lastWorkingAutoModel',
+            undefined,
+          )
+        }
 
         const diffResult = await getRepositoryDiff(repo, includeUnstaged)
         if (!diffResult) {

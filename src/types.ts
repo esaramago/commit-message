@@ -9,6 +9,12 @@ export interface ChatCompletionRequest {
   model: string
   messages: ChatMessage[]
   temperature?: number
+  max_tokens?: number
+  reasoning?: {
+    effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'max'
+    max_tokens?: number
+    exclude?: boolean
+  }
 }
 
 export interface ChatCompletionResponse {
