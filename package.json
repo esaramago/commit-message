@@ -1,0 +1,100 @@
+{
+  "name": "generate-commit-message",
+  "version": "1.0.0",
+  "description": "This extension for vscode and vscodium generates git commit messages using OpenRouter API.",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.4.2",
+      "onFail": "download"
+  "displayName": "Generate Commit Message",
+  "description": "Generate Git commit messages using OpenRouter AI directly from your git diff.",
+  "version": "0.1.0",
+  "publisher": "emanuelsaramago",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emanuelsaramago/generate-commit-message"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Source Code",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "generate-commit-message.generate",
+        "title": "Generate Commit Message",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "generate-commit-message.setApiKey",
+        "title": "Generate Commit Message: Set OpenRouter API Key"
+      },
+      {
+        "command": "generate-commit-message.selectModel",
+        "title": "Generate Commit Message: Select OpenRouter Model"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "generate-commit-message.generate",
+          "group": "navigation",
+          "when": "scmRepositoryCount > 0"
+        }
+      ],
+      "scm/inputBox": [
+        {
+          "command": "generate-commit-message.generate",
+          "group": "inline",
+          "when": "scmRepositoryCount > 0"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Generate Commit Message",
+      "properties": {
+        "generateCommitMessage.model": {
+          "type": "string",
+          "default": "meta-llama/llama-3.3-70b-instruct:free",
+          "description": "OpenRouter model to use. Free models end with ':free'."
+        },
+        "generateCommitMessage.includeUnstagedIfNoStaged": {
+          "type": "boolean",
+          "default": true,
+          "description": "If there are no staged changes, use unstaged working tree changes."
+        },
+        "generateCommitMessage.customPrompt": {
+          "type": "string",
+          "default": "",
+          "description": "Optional extra instructions to append to the commit generation prompt."
+        }
+      }
+    }
+  },
+  "packageManager": "pnpm@12.4.2",
+  "type": "module"
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "esbuild test/prompt.test.ts --bundle --platform=node --outfile=out/test/prompt.test.js --external:vscode && node --test out/test/prompt.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@12.4.2"
+}
