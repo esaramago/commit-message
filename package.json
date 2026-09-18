@@ -1,5 +1,5 @@
 {
-  "name": "generate-commit-message",
+  "name": "commit-message",
   "icon": "resources/icon.png",
   "displayName": "OpenRouter Commit Message",
   "description": "Generate Git commit messages using OpenRouter AI directly from your git diff.",
@@ -8,7 +8,7 @@
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/emanuelsaramago/generate-commit-message"
+    "url": "https://github.com/emanuelsaramago/commit-message"
   },
   "engines": {
     "vscode": "^1.80.0"
@@ -22,27 +22,27 @@
   "contributes": {
     "commands": [
       {
-        "command": "generate-commit-message.generate",
+        "command": "commit-message.generate",
         "title": "OpenRouter Commit Message",
         "icon": "$(sparkle)"
       },
       {
-        "command": "generate-commit-message.setApiKey",
+        "command": "commit-message.setApiKey",
         "title": "OpenRouter Commit Message: Set OpenRouter API Key"
       },
       {
-        "command": "generate-commit-message.clearApiKey",
+        "command": "commit-message.clearApiKey",
         "title": "OpenRouter Commit Message: Clear OpenRouter API Key"
       },
       {
-        "command": "generate-commit-message.selectModel",
+        "command": "commit-message.selectModel",
         "title": "OpenRouter Commit Message: Select OpenRouter Model"
       }
     ],
     "menus": {
       "scm/title": [
         {
-          "command": "generate-commit-message.generate",
+          "command": "commit-message.generate",
           "group": "navigation",
           "when": "scmRepositoryCount > 0"
         }

@@ -6,7 +6,7 @@ Technical guide and conventions for AI agents and developers working on this ext
 
 ## 1. Project Overview
 
-`generate-commit-message` is a lightweight VS Code / VSCodium extension that automatically generates Conventional Commits messages using the OpenRouter API based on your current Git diff.
+`commit-message` is a lightweight VS Code / VSCodium extension that automatically generates Conventional Commits messages using the OpenRouter API based on your current Git diff.
 
 ### Key Goals
 - **Simplicity and Speed**: Fast startup, zero heavy runtime dependencies, bundled into a single file with `esbuild`.
@@ -41,7 +41,7 @@ Technical guide and conventions for AI agents and developers working on this ext
 
 ## 3. Data Flow
 
-1. **Trigger**: User clicks the sparkle `$(sparkle)` icon on the SCM input box or runs `generate-commit-message.generate`.
+1. **Trigger**: User clicks the sparkle `$(sparkle)` icon on the SCM input box or runs `commit-message.generate`.
 2. **Git API**: Extension queries `vscode.git` to identify the active repository and checks:
    - Staged changes (`repo.diff(true)`)
    - If empty, falls back to unstaged working tree changes (`repo.diff(false)`) if enabled in settings.

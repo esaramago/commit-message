@@ -14,7 +14,7 @@ import {
 export function activate(context: vscode.ExtensionContext) {
   // Command: Generate Commit Message
   const generateCommand = vscode.commands.registerCommand(
-    'generate-commit-message.generate',
+    'commit-message.generate',
     async (sourceControlOrRepo?: any) => {
       try {
         const gitAPI = await getGitAPI()
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
             apiKey = await promptAndSetApiKey(context)
           } else if (action === 'Learn More') {
             const extensionId =
-              context.extension?.id || 'emanuelsaramago.generate-commit-message'
+              context.extension?.id || 'emanuelsaramago.commit-message'
             await vscode.env.openExternal(
               vscode.Uri.parse(
                 `https://marketplace.visualstudio.com/items?itemName=${extensionId}#getting-started`,
@@ -170,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
           )
           if (action === 'Select Another Model') {
             await vscode.commands.executeCommand(
-              'generate-commit-message.selectModel',
+              'commit-message.selectModel',
             )
           }
         }
@@ -180,7 +180,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Command: Set OpenRouter API Key
   const setApiKeyCommand = vscode.commands.registerCommand(
-    'generate-commit-message.setApiKey',
+    'commit-message.setApiKey',
     async () => {
       await promptAndSetApiKey(context)
     },
@@ -188,7 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Command: Clear OpenRouter API Key
   const clearApiKeyCommand = vscode.commands.registerCommand(
-    'generate-commit-message.clearApiKey',
+    'commit-message.clearApiKey',
     async () => {
       await deleteApiKey(context)
       vscode.window.showInformationMessage(
@@ -199,7 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Command: Select OpenRouter Model
   const selectModelCommand = vscode.commands.registerCommand(
-    'generate-commit-message.selectModel',
+    'commit-message.selectModel',
     async () => {
       const config = vscode.workspace.getConfiguration('generateCommitMessage')
       const currentModel = config.get<string>('model', 'auto:free')
