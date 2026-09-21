@@ -8,7 +8,7 @@
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/emanuelsaramago/commit-message"
+    "url": "https://github.com/esaramago/commit-message"
   },
   "engines": {
     "vscode": "^1.80.0"
