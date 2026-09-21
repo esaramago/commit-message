@@ -3,7 +3,7 @@
   "icon": "resources/icon.png",
   "displayName": "OpenRouter Commit Message",
   "description": "Generate Git commit messages using OpenRouter API directly from your git diff.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "emanuelsaramago",
   "license": "GPL-3.0-or-later",
   "repository": {
