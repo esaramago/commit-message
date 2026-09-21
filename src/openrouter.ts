@@ -243,7 +243,7 @@ export async function generateCommitMessageWithOpenRouter(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/emanuelsaramago/generate-commit-message',
+        'HTTP-Referer': 'https://github.com/esaramago/commit-message',
         'X-Title': 'Generate Commit Message VSCode Extension',
       },
       body: JSON.stringify(payload),
