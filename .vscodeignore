@@ -6,4 +6,4 @@ tsconfig.json
 pnpm-lock.yaml
 *.log
 AGENTS.md
-
+.env
