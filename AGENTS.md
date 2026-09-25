@@ -30,6 +30,7 @@ Technical guide and conventions for AI agents and developers working on this ext
 │   ├── openrouter.ts      # OpenRouter API client, model listing and free model filters
 │   ├── prompt.ts          # Conventional Commits prompt builder and message sanitization
 │   ├── secrets.ts         # Secure credential storage via vscode.SecretStorage
+│   ├── telemetry.ts       # Anonymous usage analytics via self-hosted Umami instance
 │   └── types.ts           # TypeScript interfaces for OpenRouter and Git API
 ├── .vscodeignore          # Packaging exclusion list
 ├── package.json           # Extension manifest (commands, configuration, menus, dependencies)
@@ -51,6 +52,7 @@ Technical guide and conventions for AI agents and developers working on this ext
 4. **Prompt Construction**: `buildCommitPrompt` injects Conventional Commits rules, diff text (safely truncated if large), and any optional custom instructions.
 5. **OpenRouter Completion**: Sends request using native `fetch` to `https://openrouter.ai/api/v1/chat/completions`.
 6. **Insertion**: Cleans up response (stripping markdown code fences or quotes) and sets `repo.inputBox.value`.
+7. **Telemetry**: Dispatches non-blocking anonymous event to self-hosted Umami (model, duration, fallback/success/error status) if enabled in settings.
 
 ---
 

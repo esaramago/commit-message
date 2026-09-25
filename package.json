@@ -1,9 +1,9 @@
 {
   "name": "commit-message",
+  "version": "0.1.3",
   "icon": "resources/icon.png",
   "displayName": "OpenRouter Commit Message",
   "description": "Generate Git commit messages using OpenRouter API directly from your git diff.",
-  "version": "0.1.2",
   "publisher": "emanuelsaramago",
   "license": "GPL-3.0-or-later",
   "repository": {
@@ -79,7 +79,7 @@
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild test/prompt.test.ts --bundle --platform=node --outfile=out/test/prompt.test.js --external:vscode && node --test out/test/prompt.test.js",
+    "test": "esbuild test/prompt.test.ts test/telemetry.test.ts --bundle --platform=node --outdir=out/test --external:vscode && node --require ./test/mock-vscode.js --test out/test/prompt.test.js out/test/telemetry.test.js",
     "generate": "npx --yes @vscode/vsce package"
   },
   "devDependencies": {

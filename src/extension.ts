@@ -10,12 +10,26 @@ import {
   POPULAR_FREE_MODELS,
   POPULAR_PAID_MODELS,
 } from './openrouter'
+import { getTelemetryOutputChannel, logTelemetry, trackCommitGeneration } from './telemetry'
 
 export function activate(context: vscode.ExtensionContext) {
+  context.subscriptions.push(getTelemetryOutputChannel())
+
+  logTelemetry('Extension activated', {
+    appName: vscode.env.appName,
+    mode: context.extensionMode === vscode.ExtensionMode.Development ? 'development' : 'production',
+    isTelemetryEnabled: vscode.env.isTelemetryEnabled,
+  })
+
   // Command: Generate Commit Message
   const generateCommand = vscode.commands.registerCommand(
     'commit-message.generate',
     async (sourceControlOrRepo?: any) => {
+      let startTime: number | undefined
+      let currentModel = 'auto:free'
+      let isAuto = true
+      let savedAutoModel: string | undefined
+
       try {
         const gitAPI = await getGitAPI()
         if (!gitAPI) {
@@ -64,9 +78,10 @@ export function activate(context: vscode.ExtensionContext) {
           true,
         )
         const customPrompt = config.get<string>('customPrompt', '')
-        const model = config.get<string>('model', 'auto:free')
-        const isAuto = !model || model === 'auto' || model === 'auto:free'
-        let savedAutoModel = context.globalState.get<string>(
+        const configuredModel = config.get<string>('model', 'auto:free')
+        currentModel = configuredModel
+        isAuto = !configuredModel || configuredModel === 'auto' || configuredModel === 'auto:free'
+        savedAutoModel = context.globalState.get<string>(
           'openrouter.lastWorkingAutoModel',
         )
         // Evict slow/queued models (like Nemotron) from previous session cache
@@ -91,8 +106,9 @@ export function activate(context: vscode.ExtensionContext) {
           ? savedAutoModel
             ? `auto:free (${savedAutoModel})`
             : 'auto:free'
-          : model
+          : configuredModel
 
+        startTime = Date.now()
         await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
@@ -102,7 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
           async (progress, token) => {
             const result = await generateCommitMessageWithAutoFallback(
               apiKey,
-              model,
+              configuredModel,
               messages,
               (status) => progress.report({ message: status }),
               token,
@@ -110,10 +126,32 @@ export function activate(context: vscode.ExtensionContext) {
             )
 
             if (token.isCancellationRequested) {
+              await trackCommitGeneration(
+                {
+                  model: result?.usedModel || configuredModel,
+                  originalModel: isAuto ? (savedAutoModel || configuredModel) : configuredModel,
+                  isAuto,
+                  status: 'cancelled',
+                  durationMs: startTime ? Date.now() - startTime : undefined,
+                },
+                context.extensionMode,
+              )
               return
             }
 
             repo.inputBox.value = result.commitMessage
+
+            await trackCommitGeneration(
+              {
+                model: result.usedModel,
+                originalModel: result.originalModel,
+                isAuto: result.isAutoMode,
+                fallbackUsed: result.fallbackUsed,
+                status: 'success',
+                durationMs: startTime ? Date.now() - startTime : undefined,
+              },
+              context.extensionMode,
+            )
 
             if (result.isAutoMode) {
               if (result.usedModel && result.usedModel !== savedAutoModel) {
@@ -144,17 +182,48 @@ export function activate(context: vscode.ExtensionContext) {
         )
       } catch (err: any) {
         if (err?.message === 'Operation was cancelled.') {
+          await trackCommitGeneration(
+            {
+              model: isAuto ? (savedAutoModel || currentModel) : currentModel,
+              originalModel: isAuto ? (savedAutoModel || currentModel) : currentModel,
+              isAuto,
+              status: 'cancelled',
+              durationMs: startTime ? Date.now() - startTime : undefined,
+            },
+            context.extensionMode,
+          )
           return
         }
 
         const config = vscode.workspace.getConfiguration('generateCommitMessage')
-        const currentModel = config.get<string>('model', 'auto:free')
-        const isAuto = !currentModel || currentModel === 'auto' || currentModel === 'auto:free'
-        if (isAuto) {
+        const activeModel = config.get<string>('model', 'auto:free')
+        const isAutoActive = !activeModel || activeModel === 'auto' || activeModel === 'auto:free'
+        if (isAutoActive) {
           await context.globalState.update('openrouter.lastWorkingAutoModel', undefined)
         }
 
         const errorMsg = err?.message || String(err)
+        let errorType = 'general_error'
+        if (errorMsg.includes('Invalid OpenRouter API Key')) {
+          errorType = 'auth_error'
+        } else if (errorMsg.includes('timed out')) {
+          errorType = 'timeout'
+        } else if (errorMsg.includes('unavailable')) {
+          errorType = 'model_unavailable'
+        }
+
+        await trackCommitGeneration(
+          {
+            model: isAuto ? (savedAutoModel || currentModel) : currentModel,
+            originalModel: isAuto ? (savedAutoModel || currentModel) : currentModel,
+            isAuto,
+            status: 'error',
+            errorType,
+            durationMs: startTime ? Date.now() - startTime : undefined,
+          },
+          context.extensionMode,
+        )
+
         if (errorMsg.includes('Invalid OpenRouter API Key')) {
           const action = await vscode.window.showErrorMessage(
             errorMsg,
