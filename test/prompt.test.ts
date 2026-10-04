@@ -6,7 +6,6 @@ import {
   isModelUnavailableError,
   isProviderNotFeatured,
   prioritizeFreeModels,
-  POPULAR_FREE_MODELS,
   POPULAR_PAID_MODELS,
 } from '../src/openrouter'
 
@@ -32,6 +31,47 @@ describe('Prompt & Message Formatting', () => {
       cleanCommitMessage('`chore: update deps`'),
       'chore: update deps',
     )
+  })
+
+  it('should deduplicate exact repeated messages without separator', () => {
+    const repeated =
+      'feat: add telemetry configuration and update version to 0.1.2feat: add telemetry configuration and update version to 0.1.2'
+    assert.strictEqual(
+      cleanCommitMessage(repeated),
+      'feat: add telemetry configuration and update version to 0.1.2',
+    )
+  })
+
+  it('should deduplicate messages repeated with spaces or newlines', () => {
+    assert.strictEqual(
+      cleanCommitMessage('feat: add feature\nfeat: add feature'),
+      'feat: add feature',
+    )
+    assert.strictEqual(
+      cleanCommitMessage('feat: add feature\n\nfeat: add feature'),
+      'feat: add feature',
+    )
+    assert.strictEqual(
+      cleanCommitMessage('feat: add feature feat: add feature'),
+      'feat: add feature',
+    )
+  })
+
+  it('should deduplicate consecutive duplicate lines and clean within lines', () => {
+    const input =
+      'feat: add user profile\nfeat: add user profile\n\n- add avatar upload\n- add avatar upload\n\n- add bio field'
+    const expected =
+      'feat: add user profile\n\n- add avatar upload\n\n- add bio field'
+    assert.strictEqual(cleanCommitMessage(input), expected)
+  })
+
+  it('should not alter legitimate non-repeated messages', () => {
+    const single = 'fix(auth): fix password validation check'
+    assert.strictEqual(cleanCommitMessage(single), single)
+
+    const multi =
+      'feat(api): add new endpoints\n\n- add GET /users\n- add POST /users'
+    assert.strictEqual(cleanCommitMessage(multi), multi)
   })
 
   it('should build prompt with diff and Conventional Commits instructions', () => {

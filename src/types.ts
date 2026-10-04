@@ -10,6 +10,7 @@ export interface ChatCompletionRequest {
   messages: ChatMessage[]
   temperature?: number
   max_tokens?: number
+  frequency_penalty?: number
   reasoning?: {
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'max'
     max_tokens?: number

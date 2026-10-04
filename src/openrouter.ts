@@ -257,6 +257,7 @@ export async function generateCommitMessageWithOpenRouter(
     messages,
     temperature: 0.2,
     max_tokens: 300,
+    frequency_penalty: 0.3,
     reasoning: { effort: 'none' },
   };
 

@@ -73,14 +73,66 @@ export function cleanCommitMessage(rawMessage: string): string {
     cleaned = cleaned.trim()
   }
 
-  // Strip surrounding quotes if wrapped in single or double quotes
-  if (
-    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
-    (cleaned.startsWith("'") && cleaned.endsWith("'")) ||
-    (cleaned.startsWith('`') && cleaned.endsWith('`'))
-  ) {
-    cleaned = cleaned.slice(1, -1).trim()
+  // Helper to strip surrounding quotes if wrapped in single or double quotes
+  const stripQuotes = (str: string): string => {
+    let s = str.trim()
+    if (
+      (s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("'") && s.endsWith("'")) ||
+      (s.startsWith('`') && s.endsWith('`'))
+    ) {
+      s = s.slice(1, -1).trim()
+    }
+    return s
   }
+
+  cleaned = stripQuotes(cleaned)
+
+  // 1. If entire message is an exact or whitespace-separated repetition (e.g. "feat: foo...feat: foo..." or "feat: foo\n\nfeat: foo")
+  const wholeMatch = /^(.{8,}?)(\s*\1)+$/s.exec(cleaned)
+  if (wholeMatch) {
+    cleaned = wholeMatch[1].trim()
+  }
+
+  // 2. Line by line deduplication:
+  // - clean within each line if a single line repeats itself (e.g. "feat: foo feat: foo" or "feat: foofeat: foo")
+  const rawLines = cleaned.split(/\r?\n/)
+  const processedLines = rawLines.map((line) => {
+    let trimmed = line.trim()
+    trimmed = stripQuotes(trimmed)
+    const lineMatch = /^(.{8,}?)(\s*\1)+$/.exec(trimmed)
+    return lineMatch ? lineMatch[1].trim() : line
+  })
+
+  // - remove duplicate lines even if separated by blank lines
+  const deduplicatedLines: string[] = []
+  let lastNonEmpty = ''
+  for (let i = 0; i < processedLines.length; i++) {
+    const current = processedLines[i]
+    const trimmed = current.trim()
+    if (trimmed !== '') {
+      if (trimmed === lastNonEmpty) {
+        if (
+          deduplicatedLines.length > 0 &&
+          deduplicatedLines[deduplicatedLines.length - 1].trim() === ''
+        ) {
+          deduplicatedLines.pop()
+        }
+        continue
+      }
+      lastNonEmpty = trimmed
+      deduplicatedLines.push(current)
+    } else {
+      if (
+        deduplicatedLines.length > 0 &&
+        deduplicatedLines[deduplicatedLines.length - 1].trim() !== ''
+      ) {
+        deduplicatedLines.push(current)
+      }
+    }
+  }
+
+  cleaned = stripQuotes(deduplicatedLines.join('\n').trim())
 
   return cleaned
 }
