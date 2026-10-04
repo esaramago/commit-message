@@ -103,6 +103,43 @@ export function isModelFree(model: OpenRouterModel): boolean {
   return promptPrice === '0' && completionPrice === '0';
 }
 
+export function isNetworkError(err: any): boolean {
+  if (!err) {
+    return false;
+  }
+
+  const code = err.code || err.cause?.code;
+  const networkCodes = new Set([
+    'ENOTFOUND',
+    'ENETUNREACH',
+    'EHOSTUNREACH',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'EAI_AGAIN',
+    'UND_ERR_CONNECT_TIMEOUT',
+    'ETIMEDOUT',
+  ]);
+
+  if (code && typeof code === 'string' && networkCodes.has(code)) {
+    return true;
+  }
+
+  const message = String(err.message || '').toLowerCase();
+  const causeMessage = String(err.cause?.message || '').toLowerCase();
+  const fullMessage = `${message} ${causeMessage}`;
+
+  return (
+    fullMessage.includes('fetch failed') ||
+    fullMessage.includes('getaddrinfo') ||
+    fullMessage.includes('enotfound') ||
+    fullMessage.includes('enetunreach') ||
+    fullMessage.includes('econnrefused') ||
+    fullMessage.includes('econnreset') ||
+    fullMessage.includes('network request failed') ||
+    fullMessage.includes('failed to fetch')
+  );
+}
+
 export function isModelUnavailableError(errorMessage: string): boolean {
   const lower = errorMessage.toLowerCase();
   return (
@@ -365,9 +402,13 @@ export async function generateCommitMessageWithAutoFallback(
       throw err;
     }
 
+    if (isNetworkError(err)) {
+      throw err;
+    }
+
     const errorMsg = err?.message || String(err);
     if (!isModelUnavailableError(errorMsg)) {
-      // Don't fallback on auth errors or user cancellation
+      // Don't fallback on auth errors, network errors, or user cancellation
       throw err;
     }
 
@@ -401,7 +442,7 @@ export async function generateCommitMessageWithAutoFallback(
         };
       } catch (retryErr: any) {
         lastError = retryErr;
-        if (!isModelUnavailableError(retryErr?.message || '')) {
+        if (isNetworkError(retryErr) || !isModelUnavailableError(retryErr?.message || '')) {
           throw retryErr;
         }
       }

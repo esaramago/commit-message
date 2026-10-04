@@ -6,6 +6,7 @@ import {
   fetchAvailableModels,
   generateCommitMessageWithAutoFallback,
   isModelFree,
+  isNetworkError,
   isProviderNotFeatured,
   POPULAR_FREE_MODELS,
   POPULAR_PAID_MODELS,
@@ -195,16 +196,21 @@ export function activate(context: vscode.ExtensionContext) {
           return
         }
 
+        const isNetwork = isNetworkError(err)
+
         const config = vscode.workspace.getConfiguration('generateCommitMessage')
         const activeModel = config.get<string>('model', 'auto:free')
         const isAutoActive = !activeModel || activeModel === 'auto' || activeModel === 'auto:free'
-        if (isAutoActive) {
+        // Preserve savedAutoModel cache if it was just a network issue, rather than a failing model
+        if (isAutoActive && !isNetwork) {
           await context.globalState.update('openrouter.lastWorkingAutoModel', undefined)
         }
 
         const errorMsg = err?.message || String(err)
         let errorType = 'general_error'
-        if (errorMsg.includes('Invalid OpenRouter API Key')) {
+        if (isNetwork) {
+          errorType = 'network_error'
+        } else if (errorMsg.includes('Invalid OpenRouter API Key')) {
           errorType = 'auth_error'
         } else if (errorMsg.includes('timed out')) {
           errorType = 'timeout'
@@ -224,7 +230,18 @@ export function activate(context: vscode.ExtensionContext) {
           context.extensionMode,
         )
 
-        if (errorMsg.includes('Invalid OpenRouter API Key')) {
+        if (isNetwork) {
+          const action = await vscode.window.showErrorMessage(
+            'Unable to connect to OpenRouter. Please check your internet connection.',
+            'Retry',
+          )
+          if (action === 'Retry') {
+            await vscode.commands.executeCommand(
+              'commit-message.generate',
+              sourceControlOrRepo,
+            )
+          }
+        } else if (errorMsg.includes('Invalid OpenRouter API Key')) {
           const action = await vscode.window.showErrorMessage(
             errorMsg,
             'Update API Key',
