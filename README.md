@@ -67,6 +67,28 @@ Press `F5` to open a new VS Code window with the extension loaded for testing.
 
 ---
 
+## Releasing & Publishing
+
+Publishing to the [Open VSX Registry](https://open-vsx.org) is automated with GitHub Actions using **Open VSX Trusted Publishing** (OIDC authentication without static access tokens).
+
+### Automated Release (via Git Tag)
+1. Bump the version in `package.json`.
+2. Create and push a version tag:
+   ```bash
+   git tag v0.1.5
+   git push origin v0.1.5
+   ```
+3. The CI workflow (`.github/workflows/release.yml`) will automatically:
+   - Run type checks and tests.
+   - Package the `.vsix` bundle.
+   - Publish to Open VSX via Trusted Publishing (`--trusted-publishing`).
+   - Create a GitHub Release with the `.vsix` artifact attached.
+
+### Manual Release
+You can also trigger publication manually from the **Actions** tab on GitHub by selecting the **Release & Publish** workflow and clicking **Run workflow**.
+
+---
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-or-later) - a strong copyleft license requiring any modified or derivative works to remain open-source under the same terms.

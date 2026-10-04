@@ -1,0 +1,59 @@
+name: Release & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check & Run tests
+        run: |
+          pnpm run typecheck
+          pnpm run test
+
+      - name: Package extension
+        run: pnpm run package
+
+      - name: Publish to Open VSX (Trusted Publisher)
+        run: |
+          VSIX_FILE=$(find . -maxdepth 1 -name "*.vsix" | head -n 1)
+          echo "Publishing $VSIX_FILE via Trusted Publishing..."
+          npx --yes ovsx publish "$VSIX_FILE" --trusted-publishing
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-vsix
+          path: '*.vsix'
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.vsix'
+          generate_release_notes: true

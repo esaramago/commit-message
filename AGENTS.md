@@ -72,8 +72,8 @@ Because free models rotate and providers can decommission or convert free slugs 
 - **Compile**: `pnpm run compile` (bundles `src/extension.ts` into `dist/extension.js` via `esbuild`).
 - **Watch**: `pnpm run watch`.
 - **Type Check**: `pnpm run typecheck` (`tsc --noEmit`).
-- **Package**: `pnpm run generate` (packages the extension into a `.vsix` file using `@vscode/vsce`).
-- **Publish to Open VSX**: `pnpm run publish:ovsx` or `./scripts/publish.sh` (publishes the `.vsix` package to Open VSX via `ovsx`).
+- **Package**: `pnpm run package` (packages the extension into a `.vsix` file using `@vscode/vsce`).
+- **Release & Publish**: Automated via GitHub Actions (`.github/workflows/release.yml`) using Open VSX Trusted Publishing on tag push (`git tag v* && git push origin v*`) or manual workflow dispatch.
 - **Debugging**: Press `F5` in VS Code / VSCodium to start an *Extension Development Host* window.
 
 ## 6. Code rules
