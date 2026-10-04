@@ -80,7 +80,8 @@
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
     "test": "esbuild test/prompt.test.ts test/telemetry.test.ts --bundle --platform=node --outdir=out/test --external:vscode && node --require ./test/mock-vscode.js --test out/test/prompt.test.js out/test/telemetry.test.js",
-    "generate": "npx --yes @vscode/vsce package"
+    "generate": "npx --yes @vscode/vsce package",
+    "publish:ovsx": "bash scripts/publish.sh"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
