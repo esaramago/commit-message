@@ -73,3 +73,6 @@ Because free models rotate and providers can decommission or convert free slugs 
 - **Watch**: `pnpm run watch`.
 - **Type Check**: `pnpm run typecheck` (`tsc --noEmit`).
 - **Debugging**: Press `F5` in VS Code / VSCodium to start an *Extension Development Host* window.
+
+## 6. Code rules
+* Everything is must be written in english.
