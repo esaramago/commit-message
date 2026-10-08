@@ -7,6 +7,8 @@ import {
   isProviderNotFeatured,
   prioritizeFreeModels,
   POPULAR_PAID_MODELS,
+  isReasoningMandatoryError,
+  isKnownReasoningModel,
 } from '../src/openrouter'
 
 describe('Prompt & Message Formatting', () => {
@@ -31,6 +33,32 @@ describe('Prompt & Message Formatting', () => {
       cleanCommitMessage('`chore: update deps`'),
       'chore: update deps',
     )
+  })
+
+  it('should clean <think> and <thought> reasoning blocks', () => {
+    const raw =
+      '<think>\nAnalyzing the changes in openrouter.ts\nWe need a fix commit.\n</think>\nfix: resolve reasoning mandatory issue'
+    assert.strictEqual(
+      cleanCommitMessage(raw),
+      'fix: resolve reasoning mandatory issue',
+    )
+
+    const rawThought =
+      '<thought>\nSome internal reasoning\n</thought>\nfeat: add reasoning support'
+    assert.strictEqual(
+      cleanCommitMessage(rawThought),
+      'feat: add reasoning support',
+    )
+
+    const rawWithCodeBlock =
+      '<think>Thinking</think>\n```\nfix: handle reasoning endpoint\n```'
+    assert.strictEqual(
+      cleanCommitMessage(rawWithCodeBlock),
+      'fix: handle reasoning endpoint',
+    )
+
+    const unclosed = '<think>I ran out of tokens before finishing'
+    assert.strictEqual(cleanCommitMessage(unclosed), '')
   })
 
   it('should deduplicate exact repeated messages without separator', () => {
@@ -193,6 +221,15 @@ describe('Model Unavailability Error Detection', () => {
       true,
     )
   })
+
+  it('should detect mandatory reasoning errors as model unavailability', () => {
+    assert.strictEqual(
+      isModelUnavailableError(
+        'Reasoning is mandatory for this endpoint and cannot be disabled.',
+      ),
+      true,
+    )
+  })
 })
 
 describe('Excluded Provider Filtering for Featured Models', () => {
@@ -285,5 +322,32 @@ describe('Free Model Prioritization & Auto Fallback', () => {
     assert.strictEqual(prioritized[0], 'google/gemma-4-26b-a4b-it:free')
   })
 })
+
+describe('Reasoning Models & Endpoint Handling', () => {
+  it('should detect mandatory reasoning error message', () => {
+    assert.strictEqual(
+      isReasoningMandatoryError(
+        'Reasoning is mandatory for this endpoint and cannot be disabled.',
+      ),
+      true,
+    )
+    assert.strictEqual(
+      isReasoningMandatoryError(
+        'Error: reasoning is mandatory for this model endpoint and cannot be disabled',
+      ),
+      true,
+    )
+    assert.strictEqual(isReasoningMandatoryError('Some other error'), false)
+  })
+
+  it('should identify known reasoning models', () => {
+    assert.strictEqual(isKnownReasoningModel('deepseek/deepseek-r1:free'), true)
+    assert.strictEqual(isKnownReasoningModel('deepseek/deepseek-reasoner'), true)
+    assert.strictEqual(isKnownReasoningModel('qwen/qwq-32b:free'), true)
+    assert.strictEqual(isKnownReasoningModel('google/gemma-4-26b-a4b-it:free'), false)
+    assert.strictEqual(isKnownReasoningModel('openai/gpt-4o'), false)
+  })
+})
+
 
 

@@ -140,6 +140,24 @@ export function isNetworkError(err: any): boolean {
   );
 }
 
+export function isReasoningMandatoryError(errorMessage: string): boolean {
+  const lower = errorMessage.toLowerCase();
+  return (
+    lower.includes('reasoning is mandatory') ||
+    lower.includes('cannot be disabled')
+  );
+}
+
+export function isKnownReasoningModel(modelId: string): boolean {
+  const lower = modelId.toLowerCase();
+  return (
+    lower.includes('deepseek-r1') ||
+    lower.includes('deepseek-reasoner') ||
+    lower.includes('qwq') ||
+    lower.includes('thinking')
+  );
+}
+
 export function isModelUnavailableError(errorMessage: string): boolean {
   const lower = errorMessage.toLowerCase();
   return (
@@ -158,7 +176,9 @@ export function isModelUnavailableError(errorMessage: string): boolean {
     lower.includes('timed out') ||
     lower.includes('timeout') ||
     lower.includes('overloaded') ||
-    lower.includes('capacity')
+    lower.includes('capacity') ||
+    lower.includes('reasoning is mandatory') ||
+    lower.includes('cannot be disabled')
   );
 }
 
@@ -252,96 +272,122 @@ export async function generateCommitMessageWithOpenRouter(
   cancellationToken?: { isCancellationRequested: boolean },
   timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
 ): Promise<string> {
-  const payload: ChatCompletionRequest = {
+  const isReasoning = isKnownReasoningModel(model);
+  const initialPayload: ChatCompletionRequest = {
     model,
     messages,
     temperature: 0.2,
-    max_tokens: 300,
+    max_tokens: isReasoning ? 1200 : 300,
     frequency_penalty: 0.3,
-    reasoning: { effort: 'none' },
+    ...(isReasoning ? {} : { reasoning: { effort: 'none' } }),
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort(new Error(`Request timed out after ${timeoutMs / 1000}s`));
-  }, timeoutMs);
+  const executeRequest = async (payload: ChatCompletionRequest): Promise<string> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort(new Error(`Request timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
 
-  let checkCancellationInterval: NodeJS.Timeout | undefined;
-  if (cancellationToken) {
-    checkCancellationInterval = setInterval(() => {
-      if (cancellationToken.isCancellationRequested) {
-        controller.abort(new Error('Operation was cancelled.'));
+    let checkCancellationInterval: NodeJS.Timeout | undefined;
+    if (cancellationToken) {
+      checkCancellationInterval = setInterval(() => {
+        if (cancellationToken.isCancellationRequested) {
+          controller.abort(new Error('Operation was cancelled.'));
+        }
+      }, 150);
+    }
+
+    try {
+      const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://github.com/esaramago/commit-message',
+          'X-Title': 'Generate Commit Message VSCode Extension',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (cancellationToken?.isCancellationRequested) {
+        throw new Error('Operation was cancelled.');
       }
-    }, 150);
-  }
+
+      if (!response.ok) {
+        let errorMessage = `OpenRouter API error (status ${response.status})`;
+        try {
+          const errorJson = (await response.json()) as ChatCompletionResponse;
+          if (errorJson.error?.message) {
+            errorMessage = errorJson.error.message;
+          }
+        } catch {
+          const text = await response.text();
+          if (text) {
+            errorMessage = `${errorMessage}: ${text}`;
+          }
+        }
+
+        if (response.status === 401) {
+          throw new Error(
+            `Invalid OpenRouter API Key. Please verify your key with the 'Set OpenRouter API Key' command.`
+          );
+        }
+
+        if (response.status === 429) {
+          throw new Error(
+            `OpenRouter rate limit reached. Free models may have hourly limits or queues: ${errorMessage}`
+          );
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const data = (await response.json()) as ChatCompletionResponse;
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('Received an empty response from OpenRouter.');
+      }
+
+      const cleaned = cleanCommitMessage(content);
+      if (!cleaned) {
+        throw new Error('Received an empty response from OpenRouter.');
+      }
+
+      return cleaned;
+    } catch (err: any) {
+      if (cancellationToken?.isCancellationRequested || err?.message === 'Operation was cancelled.') {
+        throw new Error('Operation was cancelled.');
+      }
+      if (controller.signal.aborted) {
+        throw new Error(`Request timed out after ${timeoutMs / 1000}s. The model took too long to respond.`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+      if (checkCancellationInterval) {
+        clearInterval(checkCancellationInterval);
+      }
+    }
+  };
 
   try {
-    const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/esaramago/commit-message',
-        'X-Title': 'Generate Commit Message VSCode Extension',
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    if (cancellationToken?.isCancellationRequested) {
-      throw new Error('Operation was cancelled.');
-    }
-
-    if (!response.ok) {
-      let errorMessage = `OpenRouter API error (status ${response.status})`;
-      try {
-        const errorJson = (await response.json()) as ChatCompletionResponse;
-        if (errorJson.error?.message) {
-          errorMessage = errorJson.error.message;
-        }
-      } catch {
-        const text = await response.text();
-        if (text) {
-          errorMessage = `${errorMessage}: ${text}`;
-        }
-      }
-
-      if (response.status === 401) {
-        throw new Error(
-          `Invalid OpenRouter API Key. Please verify your key with the 'Set OpenRouter API Key' command.`
-        );
-      }
-
-      if (response.status === 429) {
-        throw new Error(
-          `OpenRouter rate limit reached. Free models may have hourly limits or queues: ${errorMessage}`
-        );
-      }
-
-      throw new Error(errorMessage);
-    }
-
-    const data = (await response.json()) as ChatCompletionResponse;
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Received an empty response from OpenRouter.');
-    }
-
-    return cleanCommitMessage(content);
+    return await executeRequest(initialPayload);
   } catch (err: any) {
-    if (cancellationToken?.isCancellationRequested || err?.message === 'Operation was cancelled.') {
-      throw new Error('Operation was cancelled.');
-    }
-    if (controller.signal.aborted) {
-      throw new Error(`Request timed out after ${timeoutMs / 1000}s. The model took too long to respond.`);
+    if (
+      initialPayload.reasoning &&
+      isReasoningMandatoryError(err?.message || '') &&
+      !cancellationToken?.isCancellationRequested
+    ) {
+      const retryPayload: ChatCompletionRequest = {
+        ...initialPayload,
+        max_tokens: 1200,
+      };
+      delete retryPayload.reasoning;
+      return await executeRequest(retryPayload);
     }
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
-    if (checkCancellationInterval) {
-      clearInterval(checkCancellationInterval);
-    }
   }
 }
 

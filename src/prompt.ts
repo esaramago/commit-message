@@ -66,6 +66,11 @@ export function buildCommitPrompt(
 export function cleanCommitMessage(rawMessage: string): string {
   let cleaned = rawMessage.trim()
 
+  // Strip <think>...</think> and <thought>...</thought> reasoning tags from reasoning models (e.g. DeepSeek R1, QwQ)
+  cleaned = cleaned.replace(/<think(?:\s[^>]*)?>[\s\S]*?<\/think>/gi, '').trim()
+  cleaned = cleaned.replace(/<thought(?:\s[^>]*)?>[\s\S]*?<\/thought>/gi, '').trim()
+  cleaned = cleaned.replace(/^<(?:think|thought)(?:\s[^>]*)?>[\s\S]*/gi, '').trim()
+
   // Strip wrapping markdown code blocks if the LLM outputted them anyway
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\r?\n/, '')
