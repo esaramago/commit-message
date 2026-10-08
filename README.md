@@ -6,7 +6,7 @@ A simple and fast extension for **VS Code** and **VSCodium** that generates clea
 
 ## Features
 
-- ✨ **One-Click Generation**: Click the `$(sparkle)` icon in the Source Control (SCM) title bar.
+- ✨ **One-Click Generation**: Click the ✨ Sparkle icon in the Source Control title bar to generate a commit message.
 - 🆓 **Free Models First**: Defaulted to high-performance free models on OpenRouter (`meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`, `qwen/qwen-2.5-coder-32b-instruct:free`, etc.).
 - 📐 **Conventional Commits**: Automatically categorizes changes (`feat`, `fix`, `docs`, `refactor`, `chore`, etc.) in standard English.
 - 🔒 **Secure Storage**: API keys are encrypted using VS Code's native `SecretStorage`.

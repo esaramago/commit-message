@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-10-08
+
+### Added
+- Added detection for reasoning models (e.g., DeepSeek R1, QwQ) to automatically adjust token budgets and prevent unsupported reasoning disable requests.
+- Added automatic retry mechanism when endpoints report that reasoning is mandatory and cannot be disabled.
+- Added sanitization of `<think>` and `<thought>` tags to prevent reasoning tokens from appearing in commit messages.
+- Added unit tests for reasoning model detection, tag sanitization, and mandatory reasoning error handling.
+
+### Fixed
+- Fixed `Failed to generate commit message: Reasoning is mandatory for this endpoint and cannot be disabled` error.
+- Fixed model unavailability error detection to treat mandatory reasoning errors as recoverable during automatic fallback.
+
 ## [0.1.4] - 2026-10-04
 
 ### Added
