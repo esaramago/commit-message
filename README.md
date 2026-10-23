@@ -44,48 +44,13 @@ A simple and fast extension for **VS Code** and **VSCodium** that generates clea
 | `generateCommitMessage.model` | `auto:free` | Model ID to use from OpenRouter. Use `auto:free` to automatically pick active free models. |
 | `generateCommitMessage.includeUnstagedIfNoStaged` | `true` | When no changes are staged, analyze working tree diffs. |
 | `generateCommitMessage.customPrompt` | `""` | Additional instructions to append to the commit generation prompt. |
+| `generateCommitMessage.enableTelemetry` | `true` | Send anonymous usage telemetry (model used, status) to improve reliability. No code or keys are collected. |
 
 ---
 
-## Development
+## Contributing
 
-```bash
-# Install dependencies
-pnpm install
-
-# Compile extension
-pnpm run compile
-
-# Type check
-pnpm run typecheck
-
-# Start watch mode
-pnpm run watch
-```
-
-Press `F5` to open a new VS Code window with the extension loaded for testing.
-
----
-
-## Releasing & Publishing
-
-Publishing to the [Open VSX Registry](https://open-vsx.org) is automated with GitHub Actions using **Open VSX Trusted Publishing** (OIDC authentication without static access tokens).
-
-### Automated Release (via Git Tag)
-1. Bump the version in `package.json`.
-2. Create and push a version tag:
-   ```bash
-   git tag v0.1.5
-   git push origin v0.1.5
-   ```
-3. The CI workflow (`.github/workflows/release.yml`) will automatically:
-   - Run type checks and tests.
-   - Package the `.vsix` bundle.
-   - Publish to Open VSX via Trusted Publishing (`--trusted-publishing`).
-   - Create a GitHub Release with the `.vsix` artifact attached.
-
-### Manual Release
-You can also trigger publication manually from the **Actions** tab on GitHub by selecting the **Release & Publish** workflow and clicking **Run workflow**.
+Interested in contributing, reporting bugs, or building the extension locally? Check out our [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
