@@ -1,13 +1,15 @@
-# Generate Commit Message
+# OpenRouter Commit Message
 
 A simple and fast extension for **VS Code** and **VSCodium** that generates clear, concise Git commit messages following the **Conventional Commits** specification based on your repository's git diff, powered by the **OpenRouter API**.
+
+![OpenRouter Commit Message Demo](resources/shot.gif)
 
 ---
 
 ## Features
 
 - ✨ **One-Click Generation**: Click the ✨ Sparkle icon in the Source Control title bar to generate a commit message.
-- 🆓 **Free Models First**: Defaulted to high-performance free models on OpenRouter (`meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`, `qwen/qwen-2.5-coder-32b-instruct:free`, etc.).
+- 🆓 **Free Models First**: Defaulted to high-performance free models on OpenRouter.
 - 📐 **Conventional Commits**: Automatically categorizes changes (`feat`, `fix`, `docs`, `refactor`, `chore`, etc.) in standard English.
 - 🔒 **Secure Storage**: API keys are encrypted using VS Code's native `SecretStorage`.
 - 🔄 **Smart Fallback**: Analyzes staged changes first; if nothing is staged, falls back to working tree changes.
@@ -22,17 +24,17 @@ A simple and fast extension for **VS Code** and **VSCodium** that generates clea
 
 ### 2. Configure the Extension
 - Run the command:
-  `Generate Commit Message: Set OpenRouter API Key`
+  `OpenRouter Commit Message: Set OpenRouter API Key`
   and paste your key.
 - To remove your stored key at any time, run:
-  `Generate Commit Message: Clear OpenRouter API Key`
+  `OpenRouter Commit Message: Clear OpenRouter API Key`
 - (Optional) Choose your preferred model by running:
-  `Generate Commit Message: Select OpenRouter Model`
+  `OpenRouter Commit Message: Select OpenRouter Model`
   (Free models are highlighted with `[FREE]`).
 
 ### 3. Generate Commit Messages
 1. Stage your changes (or leave them in the working tree).
-2. Click the **sparkle icon** (`$(sparkle)`) in the Source Control title bar, or press `Ctrl+Shift+P` / `Cmd+Shift+P` and run `Generate Commit Message`.
+2. Click the **sparkle icon** (`$(sparkle)`) in the Source Control title bar, or press `Ctrl+Shift+P` / `Cmd+Shift+P` and run `OpenRouter Commit Message`.
 3. The generated commit message will be inserted automatically into the commit input field!
 
 ---
