@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
-import { buildCommitPrompt, cleanCommitMessage } from '../src/prompt'
+import { buildCommitPrompt, cleanCommitMessage, preprocessDiff } from '../src/prompt'
 import {
   isModelFree,
   isModelUnavailableError,
@@ -93,6 +93,41 @@ describe('Prompt & Message Formatting', () => {
     assert.strictEqual(cleanCommitMessage(input), expected)
   })
 
+  it('should deduplicate non-adjacent duplicate lines and bullets repeating the subject', () => {
+    const input = [
+      'feat(auth): add user profile',
+      '',
+      '- Add user profile.',
+      '- add avatar upload',
+      '- add bio field',
+      '- Add avatar upload.',
+    ].join('\n')
+    const expected = [
+      'feat(auth): add user profile',
+      '',
+      '- add avatar upload',
+      '- add bio field',
+    ].join('\n')
+    assert.strictEqual(cleanCommitMessage(input), expected)
+  })
+
+  it('should preserve multiple distinct conventional commit lines and cap excessive lines', () => {
+    const input = [
+      'feat: add network error detection and handling',
+      'fix: prevent auto model fallback on network errors',
+      'fix: show network error message and retry option',
+      'chore: update fallback logic to exclude network errors',
+      'test: add network error unit tests',
+    ].join('\n')
+    const expected = [
+      'feat: add network error detection and handling',
+      'fix: prevent auto model fallback on network errors',
+      'fix: show network error message and retry option',
+      'chore: update fallback logic to exclude network errors',
+    ].join('\n')
+    assert.strictEqual(cleanCommitMessage(input), expected)
+  })
+
   it('should not alter legitimate non-repeated messages', () => {
     const single = 'fix(auth): fix password validation check'
     assert.strictEqual(cleanCommitMessage(single), single)
@@ -129,6 +164,31 @@ describe('Prompt & Message Formatting', () => {
     const messages = buildCommitPrompt(diff, custom)
 
     assert.ok(messages[0].content.includes(custom))
+  })
+
+  it('should strip unchanged context lines and cancel identical -/+ EOF newline pairs in preprocessDiff', () => {
+    const rawDiff = [
+      'diff --git a/src/lib/config.ts b/src/lib/config.ts',
+      'index 3402a96..24b3de0 100644',
+      '--- a/src/lib/config.ts',
+      '+++ b/src/lib/config.ts',
+      '@@ -10,4 +10,12 @@ function resolvePocketBaseUrl(): string {',
+      ' }',
+      ' ',
+      ' export const POCKETBASE_URL = resolvePocketBaseUrl()',
+      "-export const PB_COOKIE_NAME = 'pb_auth'",
+      '\\ No newline at end of file',
+      "+export const PB_COOKIE_NAME = 'pb_auth'",
+      '+',
+      '+export default function fixBug() {',
+      "+  console.log('fix bug')",
+      '+}',
+    ].join('\n')
+
+    const cleaned = preprocessDiff(rawDiff)
+    assert.strictEqual(cleaned.includes('PB_COOKIE_NAME'), false)
+    assert.strictEqual(cleaned.includes('POCKETBASE_URL'), false)
+    assert.ok(cleaned.includes('+export default function fixBug() {'))
   })
 })
 
@@ -344,7 +404,8 @@ describe('Reasoning Models & Endpoint Handling', () => {
     assert.strictEqual(isKnownReasoningModel('deepseek/deepseek-r1:free'), true)
     assert.strictEqual(isKnownReasoningModel('deepseek/deepseek-reasoner'), true)
     assert.strictEqual(isKnownReasoningModel('qwen/qwq-32b:free'), true)
-    assert.strictEqual(isKnownReasoningModel('google/gemma-4-26b-a4b-it:free'), false)
+    assert.strictEqual(isKnownReasoningModel('google/gemma-4-26b-a4b-it:free'), true)
+    assert.strictEqual(isKnownReasoningModel('google/gemma-4-31b-it:free'), true)
     assert.strictEqual(isKnownReasoningModel('openai/gpt-4o'), false)
   })
 })

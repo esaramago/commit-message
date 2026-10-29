@@ -12,6 +12,11 @@ const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 
 export const POPULAR_FREE_MODELS = [
   {
+    id: 'google/gemma-4-31b-it:free',
+    name: 'Google: Gemma 4 31B',
+    description: 'Larger Google instruction model with strong code reasoning',
+  },
+  {
     id: 'google/gemma-4-26b-a4b-it:free',
     name: 'Google: Gemma 4 26B A4B',
     description: 'Fast, high-quality instruction model hosted on Google infrastructure',
@@ -30,11 +35,6 @@ export const POPULAR_FREE_MODELS = [
     id: 'nex-agi/nex-n2.5-mini:free',
     name: 'Nex AGI: Nex-N2.5-Mini',
     description: 'Fast instruction model',
-  },
-  {
-    id: 'google/gemma-4-31b-it:free',
-    name: 'Google: Gemma 4 31B',
-    description: 'Larger Google instruction model with strong code reasoning',
   },
   {
     id: 'z-ai/glm-5.2:free',
@@ -154,7 +154,8 @@ export function isKnownReasoningModel(modelId: string): boolean {
     lower.includes('deepseek-r1') ||
     lower.includes('deepseek-reasoner') ||
     lower.includes('qwq') ||
-    lower.includes('thinking')
+    lower.includes('thinking') ||
+    lower.includes('gemma-4')
   );
 }
 
@@ -277,7 +278,7 @@ export async function generateCommitMessageWithOpenRouter(
     model,
     messages,
     temperature: 0.2,
-    max_tokens: isReasoning ? 1200 : 300,
+    max_tokens: isReasoning ? 1200 : 120,
     frequency_penalty: 0.3,
     ...(isReasoning ? {} : { reasoning: { effort: 'none' } }),
   };
