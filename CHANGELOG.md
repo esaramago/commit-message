@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2026-10-29
+
+### Added
+- Added `preprocessDiff` to clean raw Git diffs by omitting unchanged context lines and cancelling out identical added/removed lines (such as EOF newline or formatting adjustments).
+- Added intent-based feature grouping rules in commit prompt instructions to prevent per-file or per-import fragmentation.
+- Added global topic deduplication and a 4-line cap to avoid verbose multi-topic walls in commit messages.
+- Added unit tests for diff preprocessing, topic deduplication, and Gemma-4 reasoning detection.
+
+### Changed
+- Adjusted default `max_tokens` from 300 to 120 for non-reasoning models to enforce concise commit messages.
+- Prioritized `google/gemma-4-31b-it:free` in the popular free models list.
+
+### Fixed
+- Added `gemma-4` models to known reasoning model detection to ensure appropriate token headroom and prevent reasoning configuration errors.
+
 ## [1.5.1] - 2026-10-23
 
 ### Added
