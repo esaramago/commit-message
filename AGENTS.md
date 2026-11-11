@@ -78,3 +78,5 @@ Because free models rotate and providers can decommission or convert free slugs 
 
 ## 6. Code rules
 * Everything is must be written in english.
+
+## Just testing
